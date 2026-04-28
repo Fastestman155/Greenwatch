@@ -1,7 +1,7 @@
 
-  # GreenWatch Low-Fidelity Wireframes
+  # GreenWatch
 
-  This is a code bundle for GreenWatch Low-Fidelity Wireframes. The original project is available at https://www.figma.com/design/uWhkZhXWc29eESMOdWzUNa/GreenWatch-Low-Fidelity-Wireframes.
+  This is a code bundle for GreenWatch. The original project is available at https://www.figma.com/design/uWhkZhXWc29eESMOdWzUNa/GreenWatch.
 
   ## Running the code
 
