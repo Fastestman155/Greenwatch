@@ -2,7 +2,7 @@ import { Link, useNavigate } from 'react-router';
 import { useAuth } from '../context/AuthContext';
 
 export function Navigation() {
-  const { logout, userRole } = useAuth();
+  const { logout, userRole, userEmail } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -30,7 +30,7 @@ export function Navigation() {
             </Link>
           )}
           <div className="w-10 h-10 border-2 border-black bg-white"></div>
-          <span className="font-mono text-sm">PROFILE</span>
+          <span className="font-mono text-sm">{userEmail || 'USER'}</span>
           <button
             onClick={handleLogout}
             className="font-mono text-sm border-2 border-black px-4 py-2 bg-white hover:bg-black hover:text-white transition-colors"

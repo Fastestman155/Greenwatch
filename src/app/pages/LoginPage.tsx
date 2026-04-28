@@ -7,16 +7,43 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<'citizen' | 'authority'>('citizen');
+  const [error, setError] = useState('');
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, register } = useAuth();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    login(role);
-    if (role === 'citizen') {
-      navigate('/dashboard');
+    setError('');
+
+    if (isLogin) {
+      // Handle login
+      const result = login(email, password);
+      if (result.success) {
+        // Navigate based on the user's actual role (not the selected radio button)
+        const users = JSON.parse(localStorage.getItem('greenwatch_users') || '[]');
+        const user = users.find((u: any) => u.email.toLowerCase() === email.toLowerCase());
+        if (user.role === 'citizen') {
+          navigate('/dashboard');
+        } else {
+          navigate('/authority/dashboard');
+        }
+      } else {
+        setError(result.message);
+      }
     } else {
-      navigate('/authority/dashboard');
+      // Handle registration
+      const result = register(email, password, role);
+      if (result.success) {
+        setError('');
+        setIsLogin(true);
+        setEmail('');
+        setPassword('');
+        // Show success message briefly
+        setError('Account created! Please login.');
+        setTimeout(() => setError(''), 3000);
+      } else {
+        setError(result.message);
+      }
     }
   };
 
@@ -37,6 +64,26 @@ export default function LoginPage() {
           </h2>
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Error Message */}
+            {error && (
+              <div className={`border-2 p-3 font-mono text-sm ${
+                error.includes('created')
+                  ? 'border-green-600 bg-green-50 text-green-800'
+                  : 'border-red-600 bg-red-50 text-red-800'
+              }`}>
+                {error}
+              </div>
+            )}
+
+            {/* Demo Accounts Info */}
+            {isLogin && (
+              <div className="border-2 border-gray-400 bg-gray-100 p-3">
+                <p className="font-mono text-xs font-bold mb-2">DEMO ACCOUNTS:</p>
+                <p className="font-mono text-xs">Citizen: citizen@demo.com / citizen123</p>
+                <p className="font-mono text-xs">Authority: authority@demo.com / authority123</p>
+              </div>
+            )}
+
             {/* Email Field */}
             <div>
               <label className="block text-sm font-mono font-bold mb-2">
@@ -65,38 +112,45 @@ export default function LoginPage() {
                 placeholder="••••••••"
                 required
               />
+              {!isLogin && (
+                <p className="text-xs font-mono text-gray-600 mt-1">
+                  Minimum 6 characters
+                </p>
+              )}
             </div>
 
-            {/* Role Selection */}
-            <div>
-              <label className="block text-sm font-mono font-bold mb-2">
-                LOGIN AS
-              </label>
-              <div className="flex gap-4">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="role"
-                    value="citizen"
-                    checked={role === 'citizen'}
-                    onChange={() => setRole('citizen')}
-                    className="w-4 h-4"
-                  />
-                  <span className="font-mono text-sm">Citizen</span>
+            {/* Role Selection - Only show during registration */}
+            {!isLogin && (
+              <div>
+                <label className="block text-sm font-mono font-bold mb-2">
+                  REGISTER AS
                 </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="role"
-                    value="authority"
-                    checked={role === 'authority'}
-                    onChange={() => setRole('authority')}
-                    className="w-4 h-4"
-                  />
-                  <span className="font-mono text-sm">Authority</span>
-                </label>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="role"
+                      value="citizen"
+                      checked={role === 'citizen'}
+                      onChange={() => setRole('citizen')}
+                      className="w-4 h-4"
+                    />
+                    <span className="font-mono text-sm">Citizen</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="role"
+                      value="authority"
+                      checked={role === 'authority'}
+                      onChange={() => setRole('authority')}
+                      className="w-4 h-4"
+                    />
+                    <span className="font-mono text-sm">Authority</span>
+                  </label>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Submit Button */}
             <button
@@ -110,11 +164,14 @@ export default function LoginPage() {
           {/* Toggle Link */}
           <div className="mt-6 text-center">
             <button
-              onClick={() => setIsLogin(!isLogin)}
+              onClick={() => {
+                setIsLogin(!isLogin);
+                setError('');
+              }}
               className="text-sm font-mono underline hover:no-underline"
             >
-              {isLogin 
-                ? "Don't have an account? Register" 
+              {isLogin
+                ? "Don't have an account? Register"
                 : 'Already have an account? Login'}
             </button>
           </div>

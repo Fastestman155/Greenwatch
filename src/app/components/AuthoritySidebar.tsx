@@ -4,7 +4,7 @@ import { useNotifications } from '../context/NotificationContext';
 
 export function AuthoritySidebar() {
   const location = useLocation();
-  const { logout } = useAuth();
+  const { logout, userEmail } = useAuth();
   const navigate = useNavigate();
   const { unreadCount } = useNotifications();
 
@@ -67,6 +67,12 @@ export function AuthoritySidebar() {
         </div>
 
         <div className="mt-8 pt-4 border-t-2 border-gray-300">
+          {userEmail && (
+            <div className="p-3 mb-2 bg-white border-2 border-gray-300">
+              <div className="text-xs font-mono text-gray-600 mb-1">LOGGED IN AS:</div>
+              <div className="text-xs font-mono font-bold truncate">{userEmail}</div>
+            </div>
+          )}
           <Link
             to="/dashboard"
             className="block p-3 font-mono text-sm hover:bg-gray-200 transition-colors"
