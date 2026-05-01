@@ -8,42 +8,55 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<'citizen' | 'authority'>('citizen');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { login, register } = useAuth();
+  const { login, register, userRole } = useAuth();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
-    if (isLogin) {
-      // Handle login
-      const result = login(email, password);
-      if (result.success) {
-        // Navigate based on the user's actual role (not the selected radio button)
-        const users = JSON.parse(localStorage.getItem('greenwatch_users') || '[]');
-        const user = users.find((u: any) => u.email.toLowerCase() === email.toLowerCase());
-        if (user.role === 'citizen') {
-          navigate('/dashboard');
+    try {
+      if (isLogin) {
+        // Handle login
+        const result = await login(email, password);
+        if (result.success) {
+          // Get user role from auth context after login
+          // Small delay to allow state to update
+          setTimeout(() => {
+            const session = localStorage.getItem('greenwatch_session');
+            if (session) {
+              const { role } = JSON.parse(session);
+              if (role === 'citizen') {
+                navigate('/dashboard');
+              } else {
+                navigate('/authority/dashboard');
+              }
+            }
+          }, 100);
         } else {
-          navigate('/authority/dashboard');
+          setError(result.message);
         }
       } else {
-        setError(result.message);
+        // Handle registration
+        const result = await register(email, password, role);
+        if (result.success) {
+          setError('');
+          setIsLogin(true);
+          setEmail('');
+          setPassword('');
+          // Show success message briefly
+          setError('Account created! Please login.');
+          setTimeout(() => setError(''), 3000);
+        } else {
+          setError(result.message);
+        }
       }
-    } else {
-      // Handle registration
-      const result = register(email, password, role);
-      if (result.success) {
-        setError('');
-        setIsLogin(true);
-        setEmail('');
-        setPassword('');
-        // Show success message briefly
-        setError('Account created! Please login.');
-        setTimeout(() => setError(''), 3000);
-      } else {
-        setError(result.message);
-      }
+    } catch (err: any) {
+      setError(err.message || 'An error occurred');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -155,9 +168,10 @@ export default function LoginPage() {
             {/* Submit Button */}
             <button
               type="submit"
-              className="w-full bg-black text-white p-4 font-mono font-bold hover:bg-gray-800 transition-colors"
+              disabled={loading}
+              className="w-full bg-black text-white p-4 font-mono font-bold hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLogin ? 'LOGIN' : 'REGISTER'}
+              {loading ? 'PLEASE WAIT...' : (isLogin ? 'LOGIN' : 'REGISTER')}
             </button>
           </form>
 

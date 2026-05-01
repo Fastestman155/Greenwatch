@@ -1,45 +1,28 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-
-interface User {
-  email: string;
-  password: string;
-  role: 'citizen' | 'authority';
-}
+import { authApi } from '../../utils/api';
 
 interface AuthContextType {
   isLoggedIn: boolean;
   userRole: 'citizen' | 'authority' | null;
   userEmail: string | null;
-  login: (email: string, password: string) => { success: boolean; message: string };
-  register: (email: string, password: string, role: 'citizen' | 'authority') => { success: boolean; message: string };
+  login: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
+  register: (email: string, password: string, role: 'citizen' | 'authority') => Promise<{ success: boolean; message: string }>;
   logout: () => void;
+  loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const STORAGE_KEY = 'greenwatch_users';
 const SESSION_KEY = 'greenwatch_session';
-
-// Demo accounts pre-seeded for testing
-const DEMO_ACCOUNTS: User[] = [
-  { email: 'citizen@demo.com', password: 'citizen123', role: 'citizen' },
-  { email: 'authority@demo.com', password: 'authority123', role: 'authority' },
-];
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState<'citizen' | 'authority' | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Initialize demo accounts and restore session
+  // Restore session on mount
   useEffect(() => {
-    // Initialize demo accounts if not already present
-    const existingUsers = localStorage.getItem(STORAGE_KEY);
-    if (!existingUsers) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(DEMO_ACCOUNTS));
-    }
-
-    // Restore session if exists
     const session = localStorage.getItem(SESSION_KEY);
     if (session) {
       try {
@@ -51,6 +34,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.removeItem(SESSION_KEY);
       }
     }
+    setLoading(false);
   }, []);
 
   const validateEmail = (email: string): boolean => {
@@ -62,16 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return password.length >= 6;
   };
 
-  const getUsers = (): User[] => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : [];
-  };
-
-  const saveUsers = (users: User[]) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
-  };
-
-  const register = (email: string, password: string, role: 'citizen' | 'authority') => {
+  const register = async (email: string, password: string, role: 'citizen' | 'authority') => {
     // Validate email format
     if (!validateEmail(email)) {
       return { success: false, message: 'Invalid email format' };
@@ -82,47 +57,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { success: false, message: 'Password must be at least 6 characters' };
     }
 
-    const users = getUsers();
+    try {
+      const response = await authApi.register(email, password, role);
 
-    // Check if user already exists
-    if (users.some(u => u.email.toLowerCase() === email.toLowerCase())) {
-      return { success: false, message: 'Account already exists with this email' };
+      if (response.success) {
+        return { success: true, message: 'Account created successfully' };
+      } else {
+        return { success: false, message: response.error || 'Registration failed' };
+      }
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      return { success: false, message: error.message || 'Registration failed' };
     }
-
-    // Create new user
-    const newUser: User = { email, password, role };
-    users.push(newUser);
-    saveUsers(users);
-
-    return { success: true, message: 'Account created successfully' };
   };
 
-  const login = (email: string, password: string) => {
+  const login = async (email: string, password: string) => {
     // Validate email format
     if (!validateEmail(email)) {
       return { success: false, message: 'Invalid email format' };
     }
 
-    const users = getUsers();
-    const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+    try {
+      const response = await authApi.login(email, password);
 
-    if (!user) {
-      return { success: false, message: 'No account found with this email' };
+      if (response.success && response.user) {
+        setIsLoggedIn(true);
+        setUserRole(response.user.role);
+        setUserEmail(response.user.email);
+
+        // Save session
+        localStorage.setItem(SESSION_KEY, JSON.stringify({
+          email: response.user.email,
+          role: response.user.role,
+          token: response.session.access_token
+        }));
+
+        return { success: true, message: 'Login successful' };
+      } else {
+        return { success: false, message: response.error || 'Login failed' };
+      }
+    } catch (error: any) {
+      console.error('Login error:', error);
+      return { success: false, message: error.message || 'Login failed' };
     }
-
-    if (user.password !== password) {
-      return { success: false, message: 'Incorrect password' };
-    }
-
-    // Login successful
-    setIsLoggedIn(true);
-    setUserRole(user.role);
-    setUserEmail(user.email);
-
-    // Save session
-    localStorage.setItem(SESSION_KEY, JSON.stringify({ email: user.email, role: user.role }));
-
-    return { success: true, message: 'Login successful' };
   };
 
   const logout = () => {
@@ -133,7 +110,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ isLoggedIn, userRole, userEmail, login, register, logout }}>
+    <AuthContext.Provider value={{ isLoggedIn, userRole, userEmail, login, register, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );

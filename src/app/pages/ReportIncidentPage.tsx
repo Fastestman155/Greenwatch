@@ -9,7 +9,7 @@ import { useAuth } from '../context/AuthContext';
 export default function ReportIncidentPage() {
   const navigate = useNavigate();
   const { addIncident } = useIncidents();
-  const { user } = useAuth();
+  const { userEmail } = useAuth();
   const [formData, setFormData] = useState({
     type: '',
     description: '',
@@ -17,6 +17,7 @@ export default function ReportIncidentPage() {
   });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -32,29 +33,37 @@ export default function ReportIncidentPage() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Extract region from location (simple logic: first word or "Unknown")
-    const region = formData.location.split(',')[0].trim() || 'Unknown';
-    
-    // Create new incident with all required fields
-    addIncident({
-      type: formData.type,
-      description: formData.description,
-      location: formData.location,
-      severity: 'Medium', // Default severity, could be enhanced with a form field
-      region: region,
-      reportedBy: user || 'Anonymous Citizen',
-      attachment: selectedFile && filePreview ? {
-        name: selectedFile.name,
-        url: filePreview,
-        type: selectedFile.type
-      } : undefined
-    });
-    
-    alert('Incident reported successfully!');
-    navigate('/dashboard');
+    setSubmitting(true);
+
+    try {
+      // Extract region from location (simple logic: first word or "Unknown")
+      const region = formData.location.split(',')[0].trim() || 'Unknown';
+
+      // Create new incident with all required fields
+      await addIncident({
+        type: formData.type,
+        description: formData.description,
+        location: formData.location,
+        severity: 'Medium',
+        region: region,
+        reportedBy: userEmail || 'Anonymous Citizen',
+        attachment: selectedFile && filePreview ? {
+          name: selectedFile.name,
+          url: filePreview,
+          type: selectedFile.type
+        } : undefined
+      });
+
+      alert('Incident reported successfully!');
+      navigate('/dashboard');
+    } catch (error) {
+      console.error('Failed to submit incident:', error);
+      alert('Failed to submit incident. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -180,9 +189,10 @@ export default function ReportIncidentPage() {
             <div className="flex gap-4 pt-4">
               <button
                 type="submit"
-                className="flex-1 bg-black text-white p-4 font-mono font-bold hover:bg-gray-800 transition-colors"
+                disabled={submitting}
+                className="flex-1 bg-black text-white p-4 font-mono font-bold hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                SUBMIT REPORT
+                {submitting ? 'SUBMITTING...' : 'SUBMIT REPORT'}
               </button>
               <button
                 type="button"
